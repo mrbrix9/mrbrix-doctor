@@ -1,0 +1,25 @@
+{
+  "property": "example",
+  "baseUrl": "https://www.example.com",
+  "hostVariants": ["https://example.com", "http://www.example.com"],
+  "pages": ["/", "/about"],
+  "checkCitationsOn": ["/"],
+  "citationCap": 40,
+  "sitemapCap": 25,
+  "minRawTextChars": 500,
+  "crawlerProbePath": "/",
+  "jsonLdRequired": {
+    "Article": ["headline", "datePublished", "dateModified", "image", "mainEntityOfPage", "author", "publisher"],
+    "Organization": ["name", "url", "logo"],
+    "WebSite": ["name", "url"]
+  },
+  "providerSdkPatterns": ["@anthropic-ai/sdk", "openai", "@google/generative-ai", "@aws-sdk/client-bedrock"],
+  "gatewayAllowPaths": ["src/lib/ai", "lib/ai", "packages/ai"],
+  "monthlyInferenceCeilingUsd": 50,
+  "aiSurfaces": [
+    {
+      "name": "example-assistant",
+      "goldenSet": "evals/example-assistant.golden.json"
+    }
+  ]
+}

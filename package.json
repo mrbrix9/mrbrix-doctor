@@ -1,0 +1,26 @@
+{
+  "name": "@mrbrix/doctor",
+  "version": "0.1.0",
+  "description": "Proprioception for MR Brix properties. One assertion engine, run inside the property, exit code is the verdict. Playbook v1.15 §5.9, Build Discipline #22.",
+  "type": "module",
+  "bin": {
+    "doctor": "./bin/doctor.mjs"
+  },
+  "exports": {
+    ".": "./src/engine.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "doctor.config.example.json",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "selftest": "node bin/doctor.mjs --config doctor.config.example.json --dry-run"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}

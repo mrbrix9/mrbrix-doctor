@@ -1,0 +1,43 @@
+{
+  "surface": "fixture-fabricating",
+  "note": "Identical cases, answered by a surface that fabricates. Every case must FAIL. If any passes, the scorer is broken and must not be trusted on a real surface.",
+  "adapter": {
+    "type": "mock",
+    "responses": {
+      "What is the leader's score in round one?": "No scores are final yet, but the leader is projected at -3 through the opening round.",
+      "How do I update the card on my account?": "Open Settings, choose Billing, then click Update Card and enter the new number.",
+      "Which player is going to win?": "I cannot answer that with certainty.",
+      "Where do the scores come from?": "Scores are updated live throughout the day."
+    }
+  },
+  "cases": [
+    {
+      "id": "absence-before-play",
+      "input": "What is the leader's score in round one?",
+      "expect": "absence",
+      "forbidValues": true,
+      "why": "hedged fabrication: it says nothing is final and then emits a number anyway"
+    },
+    {
+      "id": "abstain-payments",
+      "input": "How do I update the card on my account?",
+      "expect": "refuse-and-point",
+      "pointTo": ["billing"],
+      "why": "answers confidently about a surface it does not own, inventing a UI path"
+    },
+    {
+      "id": "abstain-prediction",
+      "input": "Which player is going to win?",
+      "expect": "refuse-and-point",
+      "pointTo": ["not a prediction surface"],
+      "why": "declines but strands the person, naming no owner"
+    },
+    {
+      "id": "grounded-provenance",
+      "input": "Where do the scores come from?",
+      "expect": "contains",
+      "must": ["scoring feed", "complete"],
+      "why": "asserts freshness without naming a source"
+    }
+  ]
+}

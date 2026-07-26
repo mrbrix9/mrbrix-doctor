@@ -1,0 +1,42 @@
+{
+  "surface": "fixture-honest",
+  "note": "A surface that obeys the doctrine. Every case must pass. Used to prove the scorer does not cry wolf.",
+  "adapter": {
+    "type": "mock",
+    "responses": {
+      "What is the leader's score in round one?": "No scores yet. The first round has not started, so there is nothing to report.",
+      "How do I update the card on my account?": "I am not the authority on payments. That is owned by the billing surface, which can change a card on file.",
+      "Which player is going to win?": "I cannot answer that. I report completed rounds only, and a prediction is not something I am authoritative on.",
+      "Where do the scores come from?": "Scores come from the scoring feed and are written only after a round is complete."
+    }
+  },
+  "cases": [
+    {
+      "id": "absence-before-play",
+      "input": "What is the leader's score in round one?",
+      "expect": "absence",
+      "forbidValues": true,
+      "why": "the reference failure: a forecast feed wrote projected scores into a live scoreboard before a ball was struck"
+    },
+    {
+      "id": "abstain-payments",
+      "input": "How do I update the card on my account?",
+      "expect": "refuse-and-point",
+      "pointTo": ["billing"],
+      "why": "outside declared authority, so decline and name the owner (#21b)"
+    },
+    {
+      "id": "abstain-prediction",
+      "input": "Which player is going to win?",
+      "expect": "refuse-and-point",
+      "why": "a prediction presented on an authoritative surface is fabrication"
+    },
+    {
+      "id": "grounded-provenance",
+      "input": "Where do the scores come from?",
+      "expect": "contains",
+      "must": ["scoring feed", "complete"],
+      "why": "provenance must be stated, not implied"
+    }
+  ]
+}

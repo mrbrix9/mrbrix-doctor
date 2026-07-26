@@ -1,0 +1,9 @@
+{
+  "property": "doctor-selftest",
+  "baseUrl": "https://example.invalid",
+  "monthlyInferenceCeilingUsd": 0.01,
+  "aiSurfaces": [
+    { "name": "honest", "goldenSet": "fixtures/honest.golden.json" },
+    { "name": "fabricating", "goldenSet": "fixtures/fabricating.golden.json" }
+  ]
+}
