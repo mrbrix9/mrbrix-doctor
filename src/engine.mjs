@@ -12,11 +12,41 @@ const PLACES = {
   7: 'Agent Presence (it is trusted)',
 };
 
+/**
+ * Declared, dated debt.
+ *
+ * Eleven repositories carry pre-existing violations. Without a waiver mechanism the only
+ * way to adopt this engine is a big-bang cleanup, which means it does not get adopted, which
+ * means the debt stays invisible instead of merely being deferred. A waiver makes it the
+ * opposite: written down, attributed to a reason, and carrying a date after which it fails
+ * anyway. An undated exception is how a rule quietly dies.
+ */
+function applyWaivers(results, config, now) {
+  for (const w of config.waivers ?? []) {
+    const until = w.until ? new Date(w.until) : null;
+    if (!until || Number.isNaN(until.getTime())) continue; // a waiver with no valid expiry is not a waiver
+    const expired = now > until;
+    for (const r of results) {
+      if (r.status !== 'fail' || r.id !== w.id) continue;
+      if (w.match && !`${r.title} ${r.evidence}`.toLowerCase().includes(String(w.match).toLowerCase())) continue;
+      if (expired) {
+        r.evidence = `WAIVER EXPIRED ${w.until} — ${r.evidence}`;
+      } else {
+        r.status = 'skip';
+        r.waived = true;
+        r.evidence = `waived until ${w.until}: ${w.reason ?? 'no reason given'} — underlying: ${r.evidence}`;
+      }
+    }
+  }
+}
+
 export async function runDoctor({ root, config, skipLive = false, skipRepo = false, withEvals = false }) {
   const results = [];
   if (!skipRepo) results.push(...runRepoChecks(root, config, { skipGoldenSetPresence: withEvals }));
   if (withEvals) results.push(...(await runAllGoldenSets(root, config)));
   if (!skipLive) results.push(...(await runLiveChecks(config)));
+
+  applyWaivers(results, config, new Date(config.now ?? Date.now()));
 
   const failed = results.filter(r => r.status === 'fail');
   const passed = results.filter(r => r.status === 'pass');
@@ -60,8 +90,15 @@ export function printReport(report) {
     console.log('');
   }
   const { pass, fail, skip } = report.counts;
-  const line = `  ${fail === 0 ? C.green('PASS') : C.red('FAIL')}   ${pass} passed, ${fail} failed, ${skip} skipped`;
+  const waived = report.results.filter(r => r.waived);
+  const line = `  ${fail === 0 ? C.green('PASS') : C.red('FAIL')}   ${pass} passed, ${fail} failed, ${skip} skipped${waived.length ? `, ${waived.length} WAIVED` : ''}`;
   console.log(line);
+  if (waived.length) {
+    // Waived is not passed. Printing it separately is the point: declared debt stays visible.
+    console.log('');
+    console.log(C.yellow('  Waived (declared debt, still broken):'));
+    for (const r of waived) console.log(C.yellow(`    - [${r.id}] ${r.title}`) + C.dim(` ${r.evidence}`));
+  }
   if (fail > 0) {
     console.log('');
     console.log(C.red('  Failing assertions:'));
