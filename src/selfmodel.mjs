@@ -182,7 +182,14 @@ export function writeSelfModel(root, cfg, { strict = true } = {}) {
       `\`not_authoritative_on\` matters most: without it, refuse-and-point (#21b) has nothing to consult.`
     );
   }
-  const outDir = existsSync(join(root, 'public')) ? join(root, 'public', '.well-known') : join(root, '.well-known');
+  // A Next.js app serves static files from public/ and nowhere else, so the directory
+  // has to be created when it is absent rather than falling back to the repo root, where
+  // the file would be written, committed, deployed, and never served.
+  const isNext = existsSync(join(root, 'next.config.mjs')) || existsSync(join(root, 'next.config.js')) ||
+    existsSync(join(root, 'next.config.ts')) || !!(readJson(join(root, 'package.json'))?.dependencies?.next);
+  const outDir = (isNext || existsSync(join(root, 'public')))
+    ? join(root, 'public', '.well-known')
+    : join(root, '.well-known');
   mkdirSync(outDir, { recursive: true });
   const out = join(outDir, 'mrbrix-self.json');
   writeFileSync(out, JSON.stringify(model, null, 2) + '\n');
