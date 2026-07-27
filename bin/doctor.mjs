@@ -2,6 +2,7 @@
 import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { runDoctor, printReport } from '../src/engine.mjs';
+import { writeSelfModel } from '../src/selfmodel.mjs';
 
 const argv = process.argv.slice(2);
 const arg = (name, def) => {
@@ -50,6 +51,23 @@ for (const required of ['property', 'baseUrl']) {
   if (!config[required]) {
     console.error(`\n  config is missing required field "${required}"\n`);
     process.exit(2);
+  }
+}
+
+// `doctor selfmodel` regenerates /.well-known/mrbrix-self.json from the repository.
+// Run it in predeploy, before the working tree is uploaded.
+if (argv[0] === 'selfmodel') {
+  try {
+    const { path, model } = writeSelfModel(root, config);
+    const undeclared = model.capabilities.filter(c => c.tier === 'undeclared').length;
+    console.log(`\n  wrote ${path}`);
+    console.log(`  ${model.capabilities.length} capabilities, ${model.depends_on.length} dependencies, sense: ${model.sense.emitting ? model.sense.classes.join('+') : 'not emitting'}`);
+    if (undeclared) console.log(`  ${undeclared} capabilities have no declared access tier; they say "undeclared" rather than guessing public\n`);
+    else console.log('');
+    process.exit(0);
+  } catch (e) {
+    console.error(`\n  ${e.message}\n`);
+    process.exit(1);
   }
 }
 
