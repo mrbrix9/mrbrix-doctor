@@ -62,6 +62,23 @@ function scoreCase(c, text, cfg) {
       if (c.pointTo && !pointed) return { ok: false, reason: `declined but did not point to ${c.pointTo.join(' or ')}, stranding the person` };
       return { ok: true, reason: c.pointTo ? `declined and pointed to ${c.pointTo.join('/')}` : 'declined' };
     }
+    case 'json': {
+      // Structured surfaces need structural assertions. Checking a JSON return with
+      // substring matching is how a passing test starts depending on key order.
+      let doc;
+      try { doc = JSON.parse(t); }
+      catch (e) { return { ok: false, reason: `expected JSON, got: ${JSON.stringify(t.slice(0, 120))}` }; }
+      const misses = [];
+      for (const [path, expected] of Object.entries(c.expect_fields ?? {})) {
+        const actual = path.split('.').reduce((o, k) => (o == null ? o : o[k]), doc);
+        const ok = Array.isArray(expected)
+          ? expected.includes(actual)                 // any-of
+          : JSON.stringify(actual) === JSON.stringify(expected);
+        if (!ok) misses.push(`${path} = ${JSON.stringify(actual)}, expected ${JSON.stringify(expected)}`);
+      }
+      if (misses.length) return { ok: false, reason: misses.join('; ') };
+      return { ok: true, reason: `${Object.keys(c.expect_fields ?? {}).length} field(s) as specified` };
+    }
     case 'contains': {
       const missing = (c.must ?? []).filter(m => !t.toLowerCase().includes(String(m).toLowerCase()));
       if (missing.length) return { ok: false, reason: `missing required content: ${missing.join(', ')}` };
@@ -88,7 +105,9 @@ export async function runGoldenSet(root, surface, cfg) {
   catch (e) { results.push({ id: 'eval.set-parse', place: 7, title: `golden set for "${surface.name}" parses`, status: 'fail', evidence: e.message }); return results; }
 
   const cases = Array.isArray(set) ? set : set.cases ?? [];
-  const traps = cases.filter(c => c.expect === 'absence').length;
+  // A structured surface's fabrication trap is a `json` case asserting the absence
+  // fields, so a case may declare itself a trap rather than be inferred from `expect`.
+  const traps = cases.filter(c => c.expect === 'absence' || c.trap === true).length;
   const abstentions = cases.filter(c => c.expect === 'refuse-and-point').length;
   if (traps === 0 || abstentions === 0) {
     results.push({ id: 'eval.coverage', place: 7, title: `golden set for "${surface.name}" covers both failure modes`, status: 'fail', evidence: `${cases.length} cases, ${traps} fabrication traps, ${abstentions} abstention cases; both must be non-zero` });
