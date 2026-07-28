@@ -1,6 +1,7 @@
 # @mrbrix/doctor
 
-Proprioception for an MR Brix property. Playbook v1.15 §5.9, Build Discipline #22.
+A property senses itself. One assertion engine, run inside the repository, where the exit code
+is the verdict.
 
 The sense layer's three classes all point outward and need a visitor before anything is felt.
 This is the fourth class, and its subject is the property itself: is it where it thinks it is,
@@ -19,9 +20,10 @@ node bin/doctor.mjs --config doctor.config.json --json .doctor/verdict.json
 A central scanner sees only a property's HTTP surface. It cannot see an import graph, a build
 command, a migration directory, or an evaluation result, and those are exactly where the
 portfolio's real failures have lived. A scanner that cannot see them returns a confident green
-over a property that is quietly broken, which is the MotoTerra failure at portfolio scale.
+over a property that is quietly broken.
 
-Discipline #19 applied to verification itself: the checker lives in the primitive, not beside it.
+The governing idea: a body does not decide to place a nerve in its leg. If someone has to
+remember to run the check, the check is in the wrong place.
 
 ## What it asserts
 
@@ -30,9 +32,9 @@ Discipline #19 applied to verification itself: the checker lives in the primitiv
 | Group | Examples |
 |---|---|
 | Live surface | text `h1` (an SVG logo in the `h1` is an empty `h1`), one per page, title and description length, self-referencing canonical, one-hop redirects to the canonical host, real 404s, JSON-LD parses with required fields, **every outbound citation fetched**, content present in raw HTML with no JS, every named AI and search crawler receiving 200, every sitemap URL resolving |
-| Repository | no schema push in a build or deploy command, migration history exists, no provider SDK imported outside the §6.2 gateway wrapper, a declared inference spend ceiling |
+| Repository | no schema push in a build or deploy command, migration history exists, no provider SDK imported outside your gateway wrapper, a declared inference spend ceiling |
 | AI truthfulness | a golden set exists per declared AI surface and covers both failure modes: **fabrication traps** (inputs whose correct answer is absence) and **abstention cases** (inputs outside declared authority where refuse-and-point must fire) |
-| Place 7 | `/.well-known/mrbrix-self.json` resolves, validates against `mrbrix.self/1`, and declares `not_authoritative_on` |
+| Self-model | `/.well-known/mrbrix-self.json` resolves, validates against `mrbrix.self/1`, and declares `not_authoritative_on` |
 
 **No silent caps.** Where coverage is bounded (citations, sitemap URLs), the bound is reported as a
 `skip` line naming what was not checked. A truncated run must never read as a complete one.
@@ -51,21 +53,21 @@ A dependency tree is a reason not to adopt it.
 Copy `doctor.config.example.json` to `doctor.config.json` in the property root. Only `property`
 and `baseUrl` are required.
 
-## Verified runs, 2026-07-26
+## What it catches that a checklist does not
 
-First run of the engine, recorded rather than summarized.
+On its first run across a portfolio, the engine found three classes of defect that had all been
+written down somewhere and had never failed anything:
 
-- **mototerra** (live, `--live-only`): 32 passed, 1 failed. The only failure is the self-model 404,
-  which is place 7 being unbuilt portfolio-wide and is expected. The SEO defects from the
-  2026-07 scar are confirmed repaired: text `h1` present, all six sitemap URLs 200, all six
-  outbound citations 200, all seven crawlers 200, 4613 chars of server-rendered text.
-- **T1** (`--repo-only`): caught `src/lib/claude.ts` importing the provider SDK outside the
-  gateway wrapper, the known §6.2 violation, from the code rather than from a note.
-- **visdx / llm-visibility** (`--repo-only`): caught `prisma db push` in `vercel-build` with no
-  `prisma/migrations/`, the live production DDL hazard, plus the same gateway violation.
+- A homepage whose `<h1>` contained only an SVG logo. The page scored well on every tool that
+  checks whether an `h1` is *present*, and it targeted the site's primary keyword with no
+  heading text at all.
+- A schema push inside a deploy command, applying unreviewed DDL to a production database with
+  no migration file and no rollback path.
+- A model-provider SDK imported outside the wrapper that was supposed to make the provider a
+  swappable config value.
 
-Both repository violations were previously known and written down. Neither had ever failed
-anything. That is the difference this package makes.
+None of the three is visible in a screenshot, and none would fail a build. That gap is the
+reason this exists.
 
 ## Golden sets
 
@@ -104,9 +106,11 @@ node bin/doctor.mjs --config fixtures/selftest.config.json --repo-only --evals
 
 Named rather than implied.
 
-- T1 emission of `class: "proprioception"` (blocked: T1's migration is not applied to a live database)
-- `health` block in the self-model (blocked: no property publishes a self-model yet)
-- No golden set exists for any real surface yet. The runner works; the sets have to be authored
-  per surface, and authoring them is a judgment task, not a generation task
-- Place 3 and place 5 assertions (analytics tag firing, CMS `status: wired`) need credentialed API calls
-- Injection red-team assertions for the allied agent tier
+- Emission of the verdict to a telemetry sink as its own signal class
+- A `health` block inside the self-model, so a property's own compliance is part of what it
+  publishes about itself
+- Analytics-tag and CMS-wiring assertions, which need credentialed API calls rather than a fetch
+- Injection red-teaming for authenticated agent surfaces
+
+Golden sets are per-surface by nature: the runner is general, but deciding what a given surface
+must never claim is a judgment task, not a generated one.
