@@ -1,25 +1,39 @@
 {
   "name": "@mrbrix/doctor",
   "version": "0.1.0",
-  "description": "Proprioception for MR Brix properties. One assertion engine, run inside the property, exit code is the verdict. Playbook v1.15 §5.9, Build Discipline #22.",
+  "description": "Proprioception for MR Brix properties. One assertion engine, run inside the property, exit code is the verdict. Playbook v1.15 \u00a75.9, Build Discipline #22.",
   "type": "module",
   "bin": {
-    "doctor": "./bin/doctor.mjs"
+    "doctor": "./bin/doctor.mjs",
+    "seam-doctor": "./bin/seam-doctor.mjs",
+    "seam-watch": "./bin/seam-watch.mjs",
+    "seam-guard": "./bin/seam-guard.mjs",
+    "seam-secrets": "./bin/seam-secrets.mjs"
   },
   "exports": {
     ".": "./src/engine.mjs"
   },
   "files": [
+    "README.md",
     "bin",
-    "src",
     "doctor.config.example.json",
-    "README.md"
+    "scripts",
+    "src",
+    "test"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "selftest": "node bin/doctor.mjs --config doctor.config.example.json --dry-run"
+    "selftest": "node bin/doctor.mjs --config doctor.config.example.json --dry-run",
+    "test": "node --test test/*.test.mjs",
+    "test:mutations": "node scripts/mutations.mjs",
+    "seam": "node bin/seam-doctor.mjs",
+    "gate": "npm run test && npm run test:mutations",
+    "seam:watch": "node bin/seam-watch.mjs",
+    "seam:guard": "node bin/seam-guard.mjs",
+    "seam:secrets": "node bin/seam-secrets.mjs",
+    "predeploy": "npm run gate && node bin/seam-secrets.mjs"
   },
   "license": "UNLICENSED",
   "private": true
