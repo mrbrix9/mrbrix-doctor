@@ -2,7 +2,7 @@
 // runs inside the property (Discipline #19 applied to verification itself).
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
-import { join, relative, extname } from 'node:path';
+import { join, relative, extname, resolve } from 'node:path';
 
 const IGNORE = new Set(['node_modules', '.next', '.git', 'dist', 'build', '.vercel', 'coverage', '.turbo', 'out']);
 const CODE_EXT = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
@@ -49,17 +49,58 @@ function checkNoDbPushInBuild(root, results) {
   }
 }
 
-function checkMigrationsExist(root, results) {
+const migrationCount = dir =>
+  readdirSync(dir).filter(n => !n.startsWith('.') && n !== 'migration_lock.toml').length;
+
+/**
+ * DDL has a reviewable history, and this repository either owns that history or names
+ * who does.
+ *
+ * The original rule was "a schema implies prisma/migrations here", and it was wrong for a
+ * real shape in the portfolio: a consumer app that carries a COPY of a shared schema purely
+ * to generate its client, while another repository owns the database and every migration.
+ * textayo is that shape (its schema is a subset of NikkiMike's, and NikkiMike holds the 26
+ * migrations). Creating a second migration history there would be worse than the fault it
+ * cleared: two repositories issuing DDL at one database.
+ *
+ * So a property may declare `schemaOwner: { property, repo }`. That is not a waiver, and it
+ * is not taken on trust: the owner is resolved on disk and must actually hold a non-empty
+ * migration history, or this fails naming what is missing. A pointer to a history that does
+ * not exist is the same as no history.
+ */
+function checkMigrationsExist(root, cfg, results) {
   const schema = ['prisma/schema.prisma', 'schema.prisma'].map(p => join(root, p)).find(existsSync);
   if (!schema) { results.push(skip('repo.migrations', 2, 'migration history', 'no prisma schema in this repo')); return; }
   const dir = join(root, 'prisma', 'migrations');
+  const localCount = existsSync(dir) ? migrationCount(dir) : 0;
+  if (localCount > 0) {
+    results.push(pass('repo.migrations', 2, 'migration history exists', `${localCount} migrations`));
+    return;
+  }
+
+  const owner = cfg?.schemaOwner;
+  if (owner?.repo) {
+    const ownerRoot = resolve(root, owner.repo);
+    const ownerDir = join(ownerRoot, 'prisma', 'migrations');
+    const named = owner.property ?? owner.repo;
+    if (!existsSync(ownerDir)) {
+      results.push(fail('repo.migrations', 2, 'migration history exists at the declared owner', `schemaOwner names "${named}" but there is no migration directory at ${ownerDir}; a pointer to a history that does not exist is not a history`));
+      return;
+    }
+    const count = migrationCount(ownerDir);
+    if (count === 0) {
+      results.push(fail('repo.migrations', 2, 'migration history exists at the declared owner', `schemaOwner names "${named}" and ${ownerDir} is empty`));
+      return;
+    }
+    results.push(pass('repo.migrations', 2, 'migration history exists at the declared owner', `this repo copies a schema it does not own; "${named}" holds ${count} migrations at ${ownerDir}`));
+    return;
+  }
+
   if (!existsSync(dir)) {
     results.push(fail('repo.migrations', 2, 'migration history exists', 'prisma/migrations/ absent while a schema is present; schema changes have no reviewable history'));
     return;
   }
-  const count = readdirSync(dir).filter(n => !n.startsWith('.') && n !== 'migration_lock.toml').length;
-  if (count === 0) results.push(fail('repo.migrations', 2, 'migration history exists', 'prisma/migrations/ is empty'));
-  else results.push(pass('repo.migrations', 2, 'migration history exists', `${count} migrations`));
+  results.push(fail('repo.migrations', 2, 'migration history exists', 'prisma/migrations/ is empty'));
 }
 
 /**
@@ -105,7 +146,12 @@ function checkGoldenSet(root, cfg, results) {
     }
     const set = readJson(p);
     const cases = Array.isArray(set) ? set : set?.cases ?? [];
-    const traps = cases.filter(c => c.expect === 'absence').length;
+    // Must match the runner's count in golden.mjs, which also honours an explicit
+    // `trap: true`. A structured surface's fabrication trap is a `json` case asserting
+    // the absence fields, so it declares itself rather than being inferred from
+    // `expect`. Without this the two counters disagree and a structured surface can
+    // never satisfy this check no matter how many traps it declares.
+    const traps = cases.filter(c => c.expect === 'absence' || c.trap === true).length;
     const abstentions = cases.filter(c => c.expect === 'refuse-and-point').length;
     if (traps === 0 || abstentions === 0) {
       results.push(fail('repo.golden-set', 7, `golden set for "${s.name}" covers both failure modes`, `${cases.length} cases, ${traps} fabrication traps, ${abstentions} abstention cases; both must be non-zero`));
@@ -127,7 +173,7 @@ function checkSpendCeiling(root, cfg, results) {
 export function runRepoChecks(root, cfg, { skipGoldenSetPresence = false } = {}) {
   const results = [];
   checkNoDbPushInBuild(root, results);
-  checkMigrationsExist(root, results);
+  checkMigrationsExist(root, cfg, results);
   checkGatewayDiscipline(root, cfg, results);
   // When --evals is on, the executing runner supersedes this presence-only check.
   if (!skipGoldenSetPresence) checkGoldenSet(root, cfg, results);
