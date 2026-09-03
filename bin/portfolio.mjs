@@ -33,6 +33,7 @@
 import { spawn } from 'node:child_process';
 import { readdirSync, existsSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
+import { discoverIn } from '../src/discover.mjs';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { homedir } from 'node:os';
@@ -71,22 +72,14 @@ if (!existsSync(root)) {
   process.exit(2);
 }
 
-/** A property is any directory holding a doctor.config.json. */
 function discover() {
-  const out = [];
-  for (const entry of readdirSync(root, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    if (only.length && !only.includes(entry.name)) continue;
-    const dir = join(root, entry.name);
-    if (existsSync(join(dir, 'doctor.config.json'))) out.push({ name: entry.name, dir });
-  }
-  return out.sort((a, b) => a.name.localeCompare(b.name));
+  return discoverIn(root, only);
 }
 
 function runOne(prop, tmp) {
   return new Promise(resolvePromise => {
     const jsonPath = join(tmp, `${prop.name}.json`);
-    const args = [DOCTOR, '--config', 'doctor.config.json', '--json', jsonPath];
+    const args = [DOCTOR, '--config', prop.config, '--json', jsonPath];
     if (has('repo-only')) args.push('--repo-only');
 
     const child = spawn(process.execPath, args, { cwd: prop.dir, stdio: ['ignore', 'pipe', 'pipe'] });
