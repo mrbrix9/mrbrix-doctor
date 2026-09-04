@@ -1,6 +1,7 @@
 import { runLiveChecks } from './checks/live.mjs';
 import { runRepoChecks } from './checks/repo.mjs';
 import { runAllGoldenSets } from './checks/golden.mjs';
+import { runWebhookChecks } from './checks/webhooks.mjs';
 
 const PLACES = {
   1: 'Vercel (it runs)',
@@ -45,6 +46,7 @@ export async function runDoctor({ root, config, skipLive = false, skipRepo = fal
   if (!skipRepo) results.push(...runRepoChecks(root, config, { skipGoldenSetPresence: withEvals }));
   if (withEvals) results.push(...(await runAllGoldenSets(root, config)));
   if (!skipLive) results.push(...(await runLiveChecks(config)));
+  if (!skipLive) results.push(...(await runWebhookChecks(config)));
 
   applyWaivers(results, config, new Date(config.now ?? Date.now()));
 
