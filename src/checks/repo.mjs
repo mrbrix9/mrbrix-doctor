@@ -3,6 +3,7 @@
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, extname, resolve } from 'node:path';
+import { goldenCoverage } from './surface-kind.mjs';
 
 const IGNORE = new Set(['node_modules', '.next', '.git', 'dist', 'build', '.vercel', 'coverage', '.turbo', 'out']);
 const CODE_EXT = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
@@ -146,18 +147,10 @@ function checkGoldenSet(root, cfg, results) {
     }
     const set = readJson(p);
     const cases = Array.isArray(set) ? set : set?.cases ?? [];
-    // Must match the runner's count in golden.mjs, which also honours an explicit
-    // `trap: true`. A structured surface's fabrication trap is a `json` case asserting
-    // the absence fields, so it declares itself rather than being inferred from
-    // `expect`. Without this the two counters disagree and a structured surface can
-    // never satisfy this check no matter how many traps it declares.
-    const traps = cases.filter(c => c.expect === 'absence' || c.trap === true).length;
-    const abstentions = cases.filter(c => c.expect === 'refuse-and-point').length;
-    if (traps === 0 || abstentions === 0) {
-      results.push(fail('repo.golden-set', 7, `golden set for "${s.name}" covers both failure modes`, `${cases.length} cases, ${traps} fabrication traps, ${abstentions} abstention cases; both must be non-zero`));
-    } else {
-      results.push(pass('repo.golden-set', 7, `golden set for "${s.name}"`, `${cases.length} cases, ${traps} fabrication traps, ${abstentions} abstention cases`));
-    }
+    // Shared with the runner (golden.mjs) so the two can never disagree, and aware of the
+    // surface's declared kind: a guard owes no abstention case (surface-kind.mjs).
+    const cov = goldenCoverage(s, cases);
+    results.push((cov.ok ? pass : fail)('repo.golden-set', 7, `golden set for "${s.name}" ${cov.title}`, cov.evidence));
   }
 }
 

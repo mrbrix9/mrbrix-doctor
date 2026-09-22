@@ -86,6 +86,26 @@ Four expectations:
 | `contains` | required grounding or provenance is present |
 | `mustNot` | applies to any case; a forbidden string fails it outright |
 
+### Not every surface is the same kind
+
+Each entry in `aiSurfaces` may declare a `kind`, and coverage is judged by what that kind can
+get wrong:
+
+| `kind` | What it is | Its set must hold |
+|---|---|---|
+| `answers` (default) | responds to people | fabrication traps **and** `refuse-and-point` cases |
+| `guard` | answers nobody: accepts or rejects content another step produced | fabrication traps; every case `expect: "json"`; and a `why` |
+
+```json
+{ "name": "ace-framing", "kind": "guard", "why": "vets one generated line before it posts; never answers a person", "goldenSet": "doctor/ace.golden.json" }
+```
+
+A guard declaration is checked, not trusted: no `why` fails; a non-`json` case fails; and at
+run time a "guard" that returns prose fails every case. An unknown kind fails, so a typo can
+never loosen the rule. Undeclared surfaces keep the full rule, so nothing changes for a
+property until it says what its surface is. The rule lives once, in
+`src/checks/surface-kind.mjs`, called by both the repo check and the runner.
+
 The numeric heuristic is opt-in per case rather than automatic. "Round 1" and "-3" are both
 digits, and only the case author knows which one is the fabrication. A scorer that guesses
 cries wolf, and a check nobody trusts is a check nobody runs.

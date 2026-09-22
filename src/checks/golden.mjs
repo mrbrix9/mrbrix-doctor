@@ -14,6 +14,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { makeAdapter } from '../adapters.mjs';
+import { goldenCoverage } from './surface-kind.mjs';
 
 const DEFAULT_ABSENCE_MARKERS = [
   'no data', 'not available', 'nothing yet', 'no results', 'not yet', 'unavailable',
@@ -105,15 +106,9 @@ export async function runGoldenSet(root, surface, cfg) {
   catch (e) { results.push({ id: 'eval.set-parse', place: 7, title: `golden set for "${surface.name}" parses`, status: 'fail', evidence: e.message }); return results; }
 
   const cases = Array.isArray(set) ? set : set.cases ?? [];
-  // A structured surface's fabrication trap is a `json` case asserting the absence
-  // fields, so a case may declare itself a trap rather than be inferred from `expect`.
-  const traps = cases.filter(c => c.expect === 'absence' || c.trap === true).length;
-  const abstentions = cases.filter(c => c.expect === 'refuse-and-point').length;
-  if (traps === 0 || abstentions === 0) {
-    results.push({ id: 'eval.coverage', place: 7, title: `golden set for "${surface.name}" covers both failure modes`, status: 'fail', evidence: `${cases.length} cases, ${traps} fabrication traps, ${abstentions} abstention cases; both must be non-zero` });
-  } else {
-    results.push({ id: 'eval.coverage', place: 7, title: `golden set for "${surface.name}" covers both failure modes`, status: 'pass', evidence: `${cases.length} cases, ${traps} fabrication traps, ${abstentions} abstention cases` });
-  }
+  // One rule, shared with the repo check, and aware of what kind of surface this is.
+  const cov = goldenCoverage(surface, cases);
+  results.push({ id: 'eval.coverage', place: 7, title: `golden set for "${surface.name}" ${cov.title}`, status: cov.ok ? 'pass' : 'fail', evidence: cov.evidence });
 
   let invoke;
   try { invoke = makeAdapter(set.adapter ?? surface.adapter, dirname(setPath)); }
