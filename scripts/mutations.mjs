@@ -214,6 +214,16 @@ const MUTATIONS = [
     file: S('contract.mjs'),
     from: "  if (!evidence) throw new Error(`result ${id}: evidence is required — a verdict without it is a claim`);",
     to:   '  evidence = evidence || "";' },
+
+  { name: 'SELFMODEL: a malformed capability is published without its meaning',
+    file: resolve(root, 'src/selfmodel.mjs'),
+    from: '  if (strict && malformed.length) {',
+    to:   '  if (false) {' },
+
+  { name: 'SELFMODEL: an undeclared tier is assumed public',
+    file: resolve(root, 'src/selfmodel.mjs'),
+    from: "tier: c.tier ?? 'undeclared'",
+    to:   "tier: c.tier ?? 'public'" },
 ];
 
 function suiteFails() {

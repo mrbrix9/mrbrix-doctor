@@ -78,11 +78,28 @@ function resolveCapabilities(root, declared) {
   const onDisk = routesOnDisk(root);
   const caps = [];
   const phantom = [];
+  const malformed = [];
   for (const c of declared ?? []) {
-    if (c.path && !onDisk.has(c.path)) phantom.push(c.path);
-    caps.push({ path: c.path, tier: c.tier ?? 'public', description: c.description ?? null });
+    // A capability is an object: { path, tier, description }. Anything else used to be
+    // published as { path: undefined, description: null }, so the sentence a property
+    // declared was dropped without a word (4grand and visdx, found 2026-11-06). Refuse it.
+    if (c === null || typeof c !== 'object' || Array.isArray(c)) {
+      malformed.push(`${JSON.stringify(c)} is not an object; write { "path": "/api/...", "tier": "...", "description": "..." }`);
+      continue;
+    }
+    if (typeof c.path !== 'string' || !c.path.startsWith('/')) {
+      malformed.push(`${JSON.stringify(c.path ?? null)} is not a route path; a capability is something an agent can call, so it has one`);
+      continue;
+    }
+    if (typeof c.description !== 'string' || !c.description.trim()) {
+      malformed.push(`${c.path} has no description; an agent reading this file cannot tell what it does`);
+      continue;
+    }
+    if (!onDisk.has(c.path)) phantom.push(c.path);
+    // An access tier nobody declared is "undeclared", never assumed public (the header rule).
+    caps.push({ path: c.path, tier: c.tier ?? 'undeclared', description: c.description });
   }
-  return { caps: caps.sort((a, b) => String(a.path).localeCompare(String(b.path))), phantom };
+  return { caps: caps.sort((a, b) => a.path.localeCompare(b.path)), phantom, malformed };
 }
 
 /** DERIVED: what this property depends on, inferred from real package entries only. */
@@ -134,7 +151,7 @@ export function buildSelfModel(root, cfg) {
   const missing = ['purpose', 'realm', 'owns', 'authoritative_on', 'not_authoritative_on']
     .filter(k => declared[k] === undefined || (Array.isArray(declared[k]) && declared[k].length === 0));
 
-  const { caps, phantom } = resolveCapabilities(root, declared.capabilities);
+  const { caps, phantom, malformed } = resolveCapabilities(root, declared.capabilities);
 
   const model = {
     schema: 'mrbrix.self/1',
@@ -164,11 +181,17 @@ export function buildSelfModel(root, cfg) {
     },
   };
 
-  return { model, missing, phantom };
+  return { model, missing, phantom, malformed };
 }
 
 export function writeSelfModel(root, cfg, { strict = true } = {}) {
-  const { model, missing, phantom } = buildSelfModel(root, cfg);
+  const { model, missing, phantom, malformed } = buildSelfModel(root, cfg);
+  if (strict && malformed.length) {
+    throw new Error(
+      `self-model declares capabilities it cannot publish faithfully:\n    ${malformed.join('\n    ')}\n` +
+      `Discipline #20 fails the build rather than publish a capability with its meaning removed.`
+    );
+  }
   if (strict && phantom.length) {
     throw new Error(
       `self-model declares capabilities that do not exist in this repository: ${phantom.join(', ')}.\n` +
