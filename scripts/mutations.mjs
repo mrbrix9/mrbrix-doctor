@@ -224,6 +224,11 @@ const MUTATIONS = [
     file: resolve(root, 'src/selfmodel.mjs'),
     from: "tier: c.tier ?? 'undeclared'",
     to:   "tier: c.tier ?? 'public'" },
+
+  { name: 'SELFMODEL: a model called through the AI SDK is not a dependency',
+    file: resolve(root, 'src/selfmodel.mjs'),
+    from: '|^ai$|^@ai-sdk\\/',
+    to:   '' },
 ];
 
 function suiteFails() {

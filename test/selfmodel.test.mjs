@@ -57,4 +57,10 @@ describe('capabilities are published with their meaning, or not at all', () => {
     assert.equal(path, join(root, 'public/.well-known/mrbrix-self.json'));
     assert.equal(JSON.parse(readFileSync(path, 'utf8')).schema, 'mrbrix.self/1');
   });
+
+  test('a property that calls a model through the AI SDK depends on a model provider', () => {
+    const root = repo();
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'x', dependencies: { next: '16.0.0', ai: '6.0.0' } }));
+    assert.ok(buildSelfModel(root, cfg([])).model.depends_on.includes('model provider'));
+  });
 });

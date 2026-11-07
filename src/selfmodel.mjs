@@ -110,7 +110,9 @@ function deriveDependsOn(pkg) {
     [/^@neondatabase\//, 'postgres (neon)'],
     [/^stripe$/, 'payments'],
     [/^twilio$/, 'carrier sms and voice'],
-    [/^@anthropic-ai\/sdk$|^openai$/, 'model provider'],
+    // The AI SDK (`ai`, `@ai-sdk/*`) is the portfolio standard for calling a model through the
+    // gateway, so it counts too; only the direct SDKs did, and MotoTerra dropped out (2026-11-07).
+    [/^@anthropic-ai\/sdk$|^openai$|^ai$|^@ai-sdk\//, 'model provider'],
     [/^@vercel\/blob$/, 'object storage'],
     [/identity-sdk|@mrbrix\/identity/, 'mrbrix identity'],
     [/@mrbrix\/sense|mrbrix-sense/, 'mrbrix sense'],
